@@ -1,0 +1,8 @@
+{
+  "name": "VELORA - Premium E-commerce Platform",
+  "description": "Full-stack single-vendor e-commerce platform for Bangladesh featuring COD checkout, promotional campaigns, order tracking, and comprehensive admin dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

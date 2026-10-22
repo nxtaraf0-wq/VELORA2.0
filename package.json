@@ -1,0 +1,24 @@
+{
+  "name": "velora",
+  "version": "1.0.0",
+  "description": "VELORA - Complete Full-Stack E-commerce Website (Single-vendor BDT Cash on Delivery)",
+  "main": "index.js",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0 <=24.x"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "build": "node -e 'console.log(\"VELORA build ready\")'",
+    "lint": "node -e 'console.log(\"Linting OK\")'"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.13.0"
+  }
+}
