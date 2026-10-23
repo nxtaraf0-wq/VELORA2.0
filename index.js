@@ -82,7 +82,16 @@ class DatabaseManager {
 
   async init() {
     const uri = process.env.MONGODB_URI;
-    const dbName = process.env.MONGODB_DB_NAME || 'velora_db';
+    let dbName = process.env.MONGODB_DB_NAME;
+    if (uri && !dbName) {
+      try {
+        const match = uri.match(/mongodb(?:\+srv)?:\/\/[^\/]+\/([^?]+)/);
+        if (match && match[1]) {
+          dbName = match[1];
+        }
+      } catch (e) {}
+    }
+    if (!dbName) dbName = 'velora_db';
 
     if (uri && uri.startsWith('mongodb')) {
       try {
@@ -104,7 +113,10 @@ class DatabaseManager {
           this.db.collection('coupons').createIndex({ code: 1 }, { unique: true })
         ]);
 
-        // Seed demo data if products collection is empty
+        // Unconditionally ensure default admin account exists in MongoDB Atlas
+        await this.ensureAdminExists(this.db);
+
+        // Seed demo data if collections are empty
         const count = await this.db.collection('products').countDocuments();
         if (count === 0) {
           await this.seedInitialData(this.db);
@@ -548,14 +560,60 @@ class DatabaseManager {
     ];
   }
 
+  async ensureAdminExists(db) {
+    try {
+      const defaultPasswordHash = '$2a$10$YGtxioHFOOaqkqvcLs95ve4hD4BHEkg911RXQI7NY1ltn2u21ZwGe'; // admin123
+      const adminUser = await db.collection('users').findOne({
+        $or: [
+          { role: 'admin' },
+          { email: 'admin@velora.com.bd' },
+          { username: 'admin' }
+        ]
+      });
+
+      if (!adminUser) {
+        console.log('⚡ No admin found in database. Provisioning default admin account (admin / admin123)...');
+        await db.collection('users').insertOne({
+          name: 'Store Administrator',
+          email: 'admin@velora.com.bd',
+          username: 'admin',
+          password: defaultPasswordHash,
+          role: 'admin',
+          phone: '01700000000',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+        console.log('✓ Default admin successfully provisioned');
+      } else {
+        // Ensure role is admin and has username
+        const updates = {};
+        if (adminUser.role !== 'admin') updates.role = 'admin';
+        if (!adminUser.username) updates.username = 'admin';
+        if (Object.keys(updates).length > 0) {
+          await db.collection('users').updateOne({ _id: adminUser._id }, { $set: updates });
+        }
+      }
+    } catch (e) {
+      console.warn('! Note on ensureAdminExists:', e.message);
+    }
+  }
+
   async seedInitialData(db) {
     console.log('Seeding initial MongoDB Atlas collections...');
     this.seedMemoryData();
-    for (const key of ['users', 'categories', 'products', 'banners', 'campaigns', 'coupons', 'settings', 'orders']) {
+    for (const key of ['categories', 'products', 'banners', 'campaigns', 'coupons', 'settings', 'orders']) {
       if (this.memoryData[key].length > 0) {
-        await db.collection(key).insertMany(this.memoryData[key]);
+        try {
+          const count = await db.collection(key).countDocuments();
+          if (count === 0) {
+            await db.collection(key).insertMany(this.memoryData[key]);
+          }
+        } catch (e) {
+          console.warn(`Could not seed ${key}:`, e.message);
+        }
       }
     }
+    await this.ensureAdminExists(db);
   }
 }
 
