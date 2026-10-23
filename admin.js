@@ -937,12 +937,11 @@ adminRouter.post('/api/admin/upload', verifyAdminToken, async (req, res) => {
 // Admin Frontend HTML Interface (/admin & /admin/login)
 // ----------------------------------------------------
 
-adminRouter.get('/admin/login', (req, res) => {
+adminRouter.get(['/admin/login', '/admin/login/', '/login', '/login/'], (req, res) => {
   res.send(renderAdminLoginPage());
 });
 
-adminRouter.get('/admin', (req, res) => {
-  // Check auth cookie; if not found, render login screen with bootstrap support
+adminRouter.get(['/admin', '/admin/'], (req, res) => {
   const token = req.cookies?.velora_admin_token;
   if (!token) {
     return res.redirect('/admin/login');
@@ -956,6 +955,25 @@ adminRouter.get('/admin', (req, res) => {
     res.clearCookie('velora_admin_token');
     return res.redirect('/admin/login');
   }
+});
+
+adminRouter.get('/', (req, res, next) => {
+  if (req.baseUrl === '/admin' || req.baseUrl === '/index.js/admin') {
+    const token = req.cookies?.velora_admin_token;
+    if (!token) {
+      return res.redirect('/admin/login');
+    }
+
+    const jwtSecret = process.env.JWT_SECRET || 'velora_secret_jwt_key_fallback_2026';
+    try {
+      jwt.verify(token, jwtSecret);
+      return res.send(renderAdminDashboardPage());
+    } catch (err) {
+      res.clearCookie('velora_admin_token');
+      return res.redirect('/admin/login');
+    }
+  }
+  next();
 });
 
 function renderAdminLoginPage() {

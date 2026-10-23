@@ -22,7 +22,28 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'velora_secret_jwt_key_fallback_2026';
 
-// Middleware configuration
+// URL Normalization Middleware (Fixes Vercel "Cannot GET /index.js" rewrite artifact)
+app.use((req, res, next) => {
+  const vercelPath = req.headers['x-matched-path'] || 
+                     req.headers['x-invoke-path'] || 
+                     req.headers['x-forwarded-uri'] || 
+                     req.headers['x-original-url'];
+
+  if (vercelPath && vercelPath !== '/index.js' && !vercelPath.startsWith('/index.js')) {
+    req.url = vercelPath + (req.url.includes('?') && !vercelPath.includes('?') ? req.url.slice(req.url.indexOf('?')) : '');
+  } else if (req.url.startsWith('/index.js/')) {
+    req.url = req.url.replace('/index.js', '') || '/';
+  } else if (req.url === '/index.js' || req.url.startsWith('/index.js?')) {
+    if (req.headers.referer && req.headers.referer.includes('/admin')) {
+      req.url = '/admin';
+    } else {
+      req.url = '/';
+    }
+  }
+  next();
+});
+
+// Body & Cookie Parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -480,12 +501,57 @@ class DatabaseManager {
         currencySymbol: '৳'
       }
     ];
+
+    this.memoryData.orders = [
+      {
+        _id: 'ord-demo-1',
+        orderNumber: 'VEL-1001',
+        customerId: 'cust-1',
+        customerInfo: {
+          name: 'Tanvir Ahmed',
+          phone: '01711223344',
+          email: 'tanvir@example.com',
+          address: 'House 22, Road 4, Sector 3, Uttara',
+          city: 'Dhaka',
+          deliveryNotes: 'Please call before delivery'
+        },
+        items: [
+          {
+            productId: 'prod-1',
+            name: 'Velora BassPro Wireless Noise Cancelling Earbuds',
+            slug: 'velora-basspro-wireless-noise-cancelling-earbuds',
+            sku: 'VEL-294011',
+            image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=800',
+            price: 1850,
+            quantity: 1,
+            selectedColor: 'Matte Black'
+          }
+        ],
+        subtotal: 1850,
+        deliveryCharge: 60,
+        discountAmount: 0,
+        appliedCoupon: null,
+        finalAmount: 1910,
+        paymentMethod: 'Cash on Delivery (COD)',
+        paymentStatus: 'Pending Collection',
+        orderStatus: 'Shipped',
+        stockRestored: false,
+        timeline: [
+          { status: 'Pending Confirmation', timestamp: new Date(Date.now() - 36 * 3600 * 1000), note: 'Order placed via Cash on Delivery' },
+          { status: 'Confirmed', timestamp: new Date(Date.now() - 24 * 3600 * 1000), note: 'Order confirmed with customer over phone' },
+          { status: 'Processing', timestamp: new Date(Date.now() - 16 * 3600 * 1000), note: 'Package quality-checked and packed in VELORA box' },
+          { status: 'Shipped', timestamp: new Date(Date.now() - 6 * 3600 * 1000), note: 'Handed over to courier hub for dispatch' }
+        ],
+        createdAt: new Date(Date.now() - 36 * 3600 * 1000),
+        updatedAt: new Date(Date.now() - 6 * 3600 * 1000)
+      }
+    ];
   }
 
   async seedInitialData(db) {
     console.log('Seeding initial MongoDB Atlas collections...');
     this.seedMemoryData();
-    for (const key of ['users', 'categories', 'products', 'banners', 'campaigns', 'coupons', 'settings']) {
+    for (const key of ['users', 'categories', 'products', 'banners', 'campaigns', 'coupons', 'settings', 'orders']) {
       if (this.memoryData[key].length > 0) {
         await db.collection(key).insertMany(this.memoryData[key]);
       }
@@ -537,7 +603,9 @@ export function optionalCustomerToken(req, res, next) {
   next();
 }
 
-// Mount the Admin router
+// Mount the Admin router on /admin and root
+app.use('/admin', adminRouter);
+app.use('/index.js/admin', adminRouter);
 app.use(adminRouter);
 
 // ----------------------------------------------------
@@ -1287,7 +1355,7 @@ app.post('/api/orders/:orderNumber/cancel', verifyCustomerToken, async (req, res
 // ----------------------------------------------------
 // Frontend Web Storefront (Embedded High-Performance SPA)
 // ----------------------------------------------------
-app.get(['/', '/products', '/checkout', '/track-order', '/account'], (req, res) => {
+app.get(['/', '/products', '/checkout', '/track-order', '/account', '/index.js'], (req, res) => {
   res.send(renderStorefrontHtml());
 });
 
@@ -1395,8 +1463,8 @@ function renderStorefrontHtml() {
           </div>
         </div>
 
-        <!-- Right Action Icons: Track Order, Customer Account, Shopping Cart -->
-        <div class="flex items-center space-x-3 sm:space-x-4">
+        <!-- Right Action Icons: Track Order, Customer Account, Shopping Cart, Three-Dot Menu -->
+        <div class="flex items-center space-x-2 sm:space-x-3">
           <!-- Order Tracking Button -->
           <a href="/track-order" onclick="openTrackOrderModal(event)" class="text-xs font-semibold text-slate-600 hover:text-slate-950 px-3 py-2 rounded-xl hover:bg-slate-100 transition flex items-center space-x-1.5">
             <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
@@ -1416,6 +1484,57 @@ function renderStorefrontHtml() {
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
             <span id="cart-badge" class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-indigo-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow">0</span>
           </button>
+
+          <!-- Three-Dot (•••) Quick Action Menu -->
+          <div class="relative">
+            <button id="btn-three-dot" onclick="toggleThreeDotMenu(event)" title="মেনু / Quick Menu" class="p-2.5 rounded-2xl border border-slate-200/80 hover:bg-slate-100 text-slate-700 hover:text-slate-950 transition flex items-center justify-center">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="5" r="2"/>
+                <circle cx="12" cy="12" r="2"/>
+                <circle cx="12" cy="19" r="2"/>
+              </svg>
+            </button>
+            <!-- Dropdown Menu -->
+            <div id="three-dot-dropdown" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50">
+              <div class="px-4 py-2 border-b border-slate-100">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">কুইক মেনু (Quick Actions)</p>
+              </div>
+              <a href="/track-order" onclick="openTrackOrderModal(event); closeThreeDotMenu();" class="flex items-center space-x-3 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
+                <span class="w-7 h-7 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">📦</span>
+                <div>
+                  <div class="font-bold text-slate-900">তোমার অর্ডার চেক করো</div>
+                  <div class="text-[10px] text-slate-500 font-normal">Track order status real-time</div>
+                </div>
+              </a>
+              <a href="/admin" class="flex items-center space-x-3 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-amber-50 hover:text-amber-700 transition">
+                <span class="w-7 h-7 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">👑</span>
+                <div>
+                  <div class="font-bold text-slate-900">অ্যাডমিন ড্যাশবোর্ড</div>
+                  <div class="text-[10px] text-slate-500 font-normal">Store Owner Portal (/admin)</div>
+                </div>
+              </a>
+              <button onclick="toggleAuthModal(); closeThreeDotMenu();" class="w-full text-left flex items-center space-x-3 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition">
+                <span class="w-7 h-7 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-bold">👤</span>
+                <div>
+                  <div class="font-bold text-slate-900">আমার অ্যাকাউন্ট</div>
+                  <div class="text-[10px] text-slate-500 font-normal">Customer profile & history</div>
+                </div>
+              </button>
+              <button onclick="toggleCartDrawer(); closeThreeDotMenu();" class="w-full text-left flex items-center space-x-3 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition">
+                <span class="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">🛒</span>
+                <div>
+                  <div class="font-bold text-slate-900">শপিং ব্যাগ (Cart)</div>
+                  <div class="text-[10px] text-slate-500 font-normal">View items & checkout</div>
+                </div>
+              </button>
+              <div class="border-t border-slate-100 mt-1 pt-1.5 px-4 py-2">
+                <div class="flex items-center space-x-2 text-[11px] text-slate-500">
+                  <span>📞</span>
+                  <span>সহায়তা: <strong class="text-slate-800">01700-000000</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -1465,6 +1584,53 @@ function renderStorefrontHtml() {
 
   <!-- 4. ACTIVE CAMPAIGN HIGHLIGHT -->
   <div id="campaign-banner-section" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4 mb-6"></div>
+
+  <!-- 4.5. "তোমার অর্ডার চেক করো" (PROMINENT HOME SCREEN TRACKING CARD) -->
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-2 mb-8">
+    <div class="bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 shadow-xl text-white border border-indigo-800/40 relative overflow-hidden">
+      <!-- Glow effect -->
+      <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none"></div>
+      
+      <div class="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+        <div class="max-w-xl">
+          <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 text-xs font-bold mb-2.5">
+            <span>🚚</span>
+            <span>লাইভ ডেলিভারি ট্র্যাকিং ও অর্ডার চেক</span>
+          </div>
+          <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center space-x-2">
+            <span>তোমার অর্ডার চেক করো</span>
+            <span class="text-xs font-semibold px-2.5 py-0.5 rounded-lg bg-indigo-600/60 text-indigo-100 uppercase tracking-wider">Live</span>
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-300 mt-1.5 leading-relaxed">
+            আপনার অর্ডার নম্বরটি (যেমন: <span class="text-amber-300 font-mono font-bold select-all">VEL-1001</span>) লিখে নিচে বোতামে চাপুন। মুহূর্তেই রিয়েল-টাইম ডেলিভারি স্ট্যাটাস ও COD ভেরিফিকেশন দেখতে পারবেন।
+          </p>
+        </div>
+
+        <div class="w-full lg:max-w-md bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-2xl border border-white/15 shadow-inner">
+          <form onsubmit="handleHomeOrderTrack(event)" class="flex flex-col sm:flex-row gap-2.5">
+            <div class="relative flex-1">
+              <input type="text" id="home-track-num" required placeholder="অর্ডার নম্বর লিখুন (e.g. VEL-1001)" 
+                class="w-full px-4 py-3 bg-white text-slate-900 placeholder-slate-400 font-semibold rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm">
+            </div>
+            <button type="submit" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm rounded-xl shadow-lg shadow-indigo-600/40 transition flex items-center justify-center space-x-2 whitespace-nowrap active:scale-95">
+              <span>অর্ডার চেক করুন</span>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+            </button>
+          </form>
+          <div class="mt-3 px-1 flex items-center justify-between text-[11px] text-slate-300">
+            <span class="flex items-center space-x-1">
+              <span>📞</span>
+              <span>সহায়তা: <strong class="text-white">01700-000000</strong></span>
+            </span>
+            <a href="/admin" class="text-amber-300 hover:text-white font-semibold underline flex items-center space-x-1">
+              <span>👑</span>
+              <span>অ্যাডমিন পোর্টাল</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <!-- 5. CATEGORIES PILLS & SHOWCASE -->
   <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -2625,6 +2791,49 @@ function renderStorefrontHtml() {
       if (e) e.preventDefault();
       openModal('track-modal');
     }
+
+    function handleHomeOrderTrack(e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('home-track-num');
+      const val = input ? input.value.trim() : '';
+      if (!val) {
+        showToast('অনুগ্রহ করে আপনার অর্ডার নম্বরটি লিখুন', true);
+        return;
+      }
+      const trackModalInput = document.getElementById('track-input-order');
+      if (trackModalInput) {
+        trackModalInput.value = val;
+      }
+      openModal('track-modal');
+      handleTrackOrderSubmit(null);
+    }
+
+    // Three-Dot (•••) Menu Functions
+    function toggleThreeDotMenu(e) {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      const menu = document.getElementById('three-dot-dropdown');
+      if (menu) {
+        menu.classList.toggle('hidden');
+      }
+    }
+
+    function closeThreeDotMenu() {
+      const menu = document.getElementById('three-dot-dropdown');
+      if (menu) menu.classList.add('hidden');
+    }
+
+    document.addEventListener('click', (e) => {
+      const btn = document.getElementById('btn-three-dot');
+      const menu = document.getElementById('three-dot-dropdown');
+      if (menu && !menu.classList.contains('hidden')) {
+        if (btn && !btn.contains(e.target) && !menu.contains(e.target)) {
+          menu.classList.add('hidden');
+        }
+      }
+    });
 
     async function handleTrackOrderSubmit(e) {
       if (e) e.preventDefault();
