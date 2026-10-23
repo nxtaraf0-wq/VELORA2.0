@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Portal - VELORA Bangladesh</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4">
+  <div class="max-w-md w-full bg-slate-800 border border-slate-700/80 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+    <!-- Brand header -->
+    <div class="text-center mb-6">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 mb-4">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+      </div>
+      <h1 class="text-3xl font-extrabold tracking-tight text-white">VELORA</h1>
+      <p class="text-xs font-semibold tracking-widest uppercase text-indigo-400 mt-1">Store Owner Administration</p>
+    </div>
+
+    <!-- Secret Passkey Banner -->
+    <div id="secret-passkey-banner" class="mb-6 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-xs text-emerald-300">
+      <div class="flex items-center space-x-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span>Admin Passkey: <strong class="font-mono text-white font-bold" id="secret-value">AM123AS4567</strong></span>
+      </div>
+      <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-[10px] font-bold text-emerald-300 border border-emerald-500/30">Verified</span>
+    </div>
+
+    <!-- Alert Message -->
+    <div id="alertBox" class="hidden mb-6 p-4 rounded-xl text-sm font-medium"></div>
+
+    <!-- Tab selection if no admin exists -->
+    <div id="setupTabs" class="hidden grid grid-cols-2 gap-2 p-1 bg-slate-900/60 rounded-xl mb-6">
+      <button onclick="switchTab('login')" id="tabLogin" class="py-2 text-sm font-semibold rounded-lg bg-indigo-600 text-white transition">Admin Login</button>
+      <button onclick="switchTab('setup')" id="tabSetup" class="py-2 text-sm font-semibold rounded-lg text-slate-400 hover:text-white transition">Initial Setup</button>
+    </div>
+
+    <!-- Quick Demo Credentials Box -->
+    <div class="mb-6 p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-xs text-indigo-300">
+      <div class="flex items-center justify-between mb-2">
+        <span class="font-bold text-white flex items-center space-x-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>Admin Access Credentials</span>
+        </span>
+        <div class="flex items-center space-x-2">
+          <button type="button" onclick="fillDemoCredentials()" class="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-semibold text-[11px] shadow transition">
+            Auto Fill
+          </button>
+          <button type="button" onclick="quickAutoLogin()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-[11px] shadow transition flex items-center space-x-1">
+            <span>⚡ 1-Click Login</span>
+          </button>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 font-mono text-[11px]">
+        <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-700/60">
+          <span class="text-slate-400 block text-[10px] uppercase font-sans font-semibold mb-0.5">Username / Email</span>
+          <span class="text-amber-300 font-bold select-all">admin</span>
+          <span class="text-slate-500 text-[10px] block font-sans">or admin@velora.com.bd</span>
+        </div>
+        <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-700/60">
+          <span class="text-slate-400 block text-[10px] uppercase font-sans font-semibold mb-0.5">Password</span>
+          <span class="text-amber-300 font-bold select-all">admin123</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Login Form -->
+    <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-5">
+      <div>
+        <label class="block text-xs font-semibold uppercase text-slate-400 tracking-wider mb-2">Username or Email</label>
+        <input type="text" id="loginIdentifier" required placeholder="admin or admin@velora.com.bd" 
+          class="w-full px-4 py-3 bg-slate-900/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold uppercase text-slate-400 tracking-wider mb-2">Password</label>
+        <input type="password" id="loginPassword" required placeholder="••••••••••••" 
+          class="w-full px-4 py-3 bg-slate-900/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
+      </div>
+      <button type="submit" id="loginBtn" class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center space-x-2">
+        <span>Enter Admin Dashboard</span>
+      </button>
+
+      <!-- Emergency Reset Button -->
+      <button type="button" onclick="quickAutoLogin()" class="w-full py-2.5 px-3 bg-slate-900/90 hover:bg-slate-700/80 border border-slate-700 text-amber-300 font-bold text-xs rounded-xl transition flex items-center justify-center space-x-2">
+        <span>⚡ Reset & Auto-Login as Default Admin</span>
+      </button>
+    </form>
+
+    <!-- Bootstrap Setup Form -->
+    <form id="setupForm" onsubmit="handleBootstrap(event)" class="hidden space-y-4">
+      <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300">
+        Setup or update the master administrator account for VELORA store.
+      </div>
+      <div>
+        <label class="block text-xs font-semibold uppercase text-slate-400 tracking-wider mb-1">Full Name</label>
+        <input type="text" id="setupName" required placeholder="Store Administrator" 
+          class="w-full px-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold uppercase text-slate-400 tracking-wider mb-1">Email</label>
+        <input type="email" id="setupEmail" required placeholder="admin@velora.com.bd" 
+          class="w-full px-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold uppercase text-slate-400 tracking-wider mb-1">Password</label>
+        <input type="password" id="setupPassword" required minlength="6" placeholder="Choose secure password" 
+          class="w-full px-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold uppercase text-slate-400 tracking-wider mb-1">Phone Number (Optional)</label>
+        <input type="text" id="setupPhone" placeholder="01700000000" 
+          class="w-full px-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white">
+      </div>
+      <button type="submit" class="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl shadow-lg transition">
+        Save & Log In to Admin
+      </button>
+    </form>
+
+    <div class="mt-8 pt-6 border-t border-slate-700/60 text-center">
+      <a href="/" class="text-xs text-slate-400 hover:text-indigo-400 transition flex items-center justify-center space-x-1">
+        <span>← Return to VELORA Storefront</span>
+      </a>
+    </div>
+  </div>
+
+  <script>
+    // Check if initial setup is needed
+    fetch('/api/admin/status')
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById('setupTabs').classList.remove('hidden');
+        if (!data.hasAdmin) {
+          switchTab('setup');
+        }
+      })
+      .catch(() => {
+        document.getElementById('setupTabs').classList.remove('hidden');
+      });
+
+    function switchTab(mode) {
+      const loginForm = document.getElementById('loginForm');
+      const setupForm = document.getElementById('setupForm');
+      const tabLogin = document.getElementById('tabLogin');
+      const tabSetup = document.getElementById('tabSetup');
+
+      if (mode === 'setup') {
+        loginForm.classList.add('hidden');
+        setupForm.classList.remove('hidden');
+        tabSetup.className = 'py-2 text-sm font-semibold rounded-lg bg-indigo-600 text-white transition';
+        tabLogin.className = 'py-2 text-sm font-semibold rounded-lg text-slate-400 hover:text-white transition';
+      } else {
+        setupForm.classList.add('hidden');
+        loginForm.classList.remove('hidden');
+        tabLogin.className = 'py-2 text-sm font-semibold rounded-lg bg-indigo-600 text-white transition';
+        tabSetup.className = 'py-2 text-sm font-semibold rounded-lg text-slate-400 hover:text-white transition';
+      }
+    }
+
+    function showAlert(msg, isError = true, withResetBtn = false) {
+      const box = document.getElementById('alertBox');
+      if (withResetBtn) {
+        box.innerHTML = '<div class="mb-2">' + msg + '</div>' + 
+          '<button type="button" onclick="quickAutoLogin()" class="w-full py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold rounded-lg text-xs shadow">⚡ Click Here to Auto-Repair & Login Now</button>';
+      } else {
+        box.textContent = msg;
+      }
+      box.className = 'mb-6 p-4 rounded-xl text-sm font-medium ' + 
+        (isError ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30');
+      box.classList.remove('hidden');
+    }
+
+    function fillDemoCredentials() {
+      document.getElementById('loginIdentifier').value = 'admin';
+      document.getElementById('loginPassword').value = 'admin123';
+      showAlert('Demo credentials filled: admin / admin123. Click Enter Admin Dashboard or 1-Click Login.', false);
+    }
+
+    async function quickAutoLogin() {
+      const btn = document.getElementById('loginBtn');
+      btn.disabled = true;
+      btn.innerText = 'Repairing & Authenticating...';
+      showAlert('Connecting to database and provisioning admin access...', false);
+
+      try {
+        const res = await fetch('/api/admin/reset-default', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          if (data.token) {
+            localStorage.setItem('velora_admin_token', data.token);
+            sessionStorage.setItem('velora_admin_token', data.token);
+          }
+          showAlert('✓ Admin account verified! Redirecting to dashboard...', false);
+          setTimeout(() => { 
+            window.location.href = '/admin' + (data.token ? '?token=' + encodeURIComponent(data.token) : ''); 
+          }, 500);
+        } else {
+          showAlert(data.error || 'Failed to auto-repair admin account', true, true);
+          btn.disabled = false;
+          btn.innerText = 'Enter Admin Dashboard';
+        }
+      } catch (e) {
+        showAlert('Network error during auto login', true, true);
+        btn.disabled = false;
+        btn.innerText = 'Enter Admin Dashboard';
+      }
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const identifier = document.getElementById('loginIdentifier').value;
+      const password = document.getElementById('loginPassword').value;
+      const btn = document.getElementById('loginBtn');
+      btn.disabled = true;
+      btn.innerText = 'Authenticating...';
+
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+          if (data.token) {
+            localStorage.setItem('velora_admin_token', data.token);
+            sessionStorage.setItem('velora_admin_token', data.token);
+          }
+          showAlert('✓ Login successful! Redirecting to dashboard...', false);
+          setTimeout(() => {
+            window.location.href = '/admin' + (data.token ? '?token=' + encodeURIComponent(data.token) : '');
+          }, 300);
+        } else {
+          showAlert(data.error || 'Authentication failed. Please check credentials or use Auto-Repair.', true, true);
+          btn.disabled = false;
+          btn.innerText = 'Enter Admin Dashboard';
+        }
+      } catch (err) {
+        showAlert('Network error. Check database connection or click Auto-Repair below.', true, true);
+        btn.disabled = false;
+        btn.innerText = 'Enter Admin Dashboard';
+      }
+    }
+
+    async function handleBootstrap(e) {
+      e.preventDefault();
+      const name = document.getElementById('setupName').value;
+      const email = document.getElementById('setupEmail').value;
+      const password = document.getElementById('setupPassword').value;
+      const phone = document.getElementById('setupPhone') ? document.getElementById('setupPhone').value : '';
+
+      try {
+        const res = await fetch('/api/admin/bootstrap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password, phone })
+        });
+        const data = await res.json();
+        if (data.success) {
+          if (data.token) {
+            localStorage.setItem('velora_admin_token', data.token);
+            sessionStorage.setItem('velora_admin_token', data.token);
+          }
+          showAlert('Administrator configured successfully! Redirecting...', false);
+          setTimeout(() => { 
+            window.location.href = '/admin' + (data.token ? '?token=' + encodeURIComponent(data.token) : ''); 
+          }, 600);
+        } else {
+          showAlert(data.error || 'Setup failed');
+        }
+      } catch (err) {
+        showAlert('Setup failed. Check server connection.');
+      }
+    }
+  </script>
+</body>
+</html>

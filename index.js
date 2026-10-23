@@ -14,7 +14,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { MongoClient, ObjectId } from 'mongodb';
 import dotenv from 'dotenv';
-import { adminRouter, verifyAdminToken } from './admin.js';
+import { adminRouter, verifyAdminToken, renderAdminLoginPage } from './admin.js';
 
 dotenv.config();
 
@@ -83,11 +83,15 @@ class DatabaseManager {
   async init() {
     const uri = process.env.MONGODB_URI;
     let dbName = process.env.MONGODB_DB_NAME;
+    if (dbName && (dbName.startsWith('mongodb') || dbName.includes('.') || dbName.includes('/') || dbName.length > 63)) {
+      dbName = null;
+    }
     if (uri && !dbName) {
       try {
-        const match = uri.match(/mongodb(?:\+srv)?:\/\/[^\/]+\/([^?]+)/);
-        if (match && match[1]) {
-          dbName = match[1];
+        const urlObj = new URL(uri.replace('mongodb+srv://', 'http://').replace('mongodb://', 'http://'));
+        const pathPart = urlObj.pathname.replace(/^\//, '');
+        if (pathPart && !pathPart.includes('.') && pathPart.length < 64) {
+          dbName = pathPart;
         }
       } catch (e) {}
     }
@@ -661,10 +665,33 @@ export function optionalCustomerToken(req, res, next) {
   next();
 }
 
+// Explicit Admin Login Routes (Direct support for /admin/login/AM123AS4567, /admin/login/:secret, /admin/login)
+app.get([
+  '/admin/login',
+  '/admin/login/',
+  '/admin/login/:secret',
+  '/admin/login/AM123AS4567',
+  '/login/AM123AS4567',
+  '/login/:secret'
+], (req, res) => {
+  const secret = req.params.secret || (req.originalUrl && req.originalUrl.includes('AM123AS4567') ? 'AM123AS4567' : '');
+  res.send(renderAdminLoginPage(secret));
+});
+
 // Mount the Admin router on /admin and root
 app.use('/admin', adminRouter);
 app.use('/index.js/admin', adminRouter);
 app.use(adminRouter);
+
+// Pass-through for /api/products and /api/categories POST/PATCH/DELETE
+app.post('/api/products', verifyAdminToken, (req, res, next) => {
+  req.url = '/api/admin/products';
+  adminRouter(req, res, next);
+});
+app.post('/api/categories', verifyAdminToken, (req, res, next) => {
+  req.url = '/api/admin/categories';
+  adminRouter(req, res, next);
+});
 
 // ----------------------------------------------------
 // Public REST API Endpoints
